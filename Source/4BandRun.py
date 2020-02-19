@@ -110,7 +110,7 @@ for layer in init_model.layers:
 opt=tf.keras.optimizers.Adam(learning_rate=0.0005, beta_1=0.9, beta_2=0.999, amsgrad=False)
 
 
-model.compile(optimizer=opt,loss=mga_get_weighted_loss(np.array([[1.,20.]])),metrics=[f1,precision,recall,'binary_accuracy'])
+model.compile(optimizer=opt,loss=mga_get_weighted_loss(np.array([[1.,5.]])),metrics=[f1,precision,recall,'binary_accuracy'])
 
 
 model_name = "VGG16_Adam.0005_batchesdividedby3_{}".format(int(time.time()))

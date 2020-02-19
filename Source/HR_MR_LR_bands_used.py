@@ -1,6 +1,7 @@
 from GeotiffGeneratorAllBands import *
 from Metrics import *
 from Losses import *
+import Analysis
 
 import numpy as np
 import os
@@ -19,6 +20,7 @@ from tensorflow.keras.callbacks import EarlyStopping,ReduceLROnPlateau,ModelChec
 
 
 import numpy as np
+import copy
 from sklearn.model_selection import train_test_split
 
 
@@ -51,16 +53,34 @@ def fileList(source):
 train_ratio=.7
 filenames,classlabels=fileList(DATA_DIR)
 # count=0
+# class_counts = {}
 # for classlabel_file in classlabels:
-#     with open(classlabel_file) as f:w
+#     with open(classlabel_file) as f:
 #         cl_dict=json.load(f)
 #         for l in cl_dict['labels']:
 #             if l not in LABEL_INTS.keys():
 #                 LABEL_INTS[l]=count
+#                 class_counts[l]=1
 #                 count=count+1
-with open("/mnt/panasas/maschenb/BigEarthNet/labels.json") as f:
-    LABEL_INTS = json.load(f)
+#             else:
+#                 class_counts[l]=class_counts[l]+1
 
+# maxFrequency = np.array(list(class_counts.values())).max()
+# class_weights = copy.deepcopy(class_counts)
+# for key,val in class_weights.items(): 
+#     class_weights[key]=float(maxFrequency)/float(val)
+
+# #save LABEL_INTS,class_weights,class_counts
+# pickle.dump( LABEL_INTS, open( "labels.p", "wb" ) )
+# pickle.dump( class_weights, open( "weights.p", "wb" ) )
+# pickle.dump( class_counts, open( "frequency.p", "wb" ) )
+
+LABEL_INTS = pickle.load( open( "labels.p", "rb" ))
+class_weights = pickle.load( open( "weights.p", "rb" ))
+class_counts = pickle.load( open( "frequency.p", "rb" ))
+class_counts_int_keys = {}
+for key,val in LABEL_INTS.items():
+    class_counts_int_keys[val] = class_counts[key]
 
 
 nSamples = len(filenames)
@@ -215,14 +235,30 @@ model = Model(inputs=[img_hr_input,img_mr_input,img_lr_input],outputs=prediction
 
 opt=tf.keras.optimizers.Adam(learning_rate=0.0005, beta_1=0.9, beta_2=0.999, amsgrad=False)
 
-model.compile(optimizer=opt,loss=mga_get_weighted_loss(np.array([[1.,20.]])),metrics=[f1,precision,recall,'binary_accuracy'])
+model.compile(optimizer=opt,loss=mga_get_weighted_loss(np.array([[1.,5.]])),metrics=[f1,precision,recall,'binary_accuracy'])
 
-model_name = "MRTEST_{}".format(int(time.time()))
+model_name = "HR_MR_LR_withweights{}".format(int(time.time()))
 callbacks = [
         #EarlyStopping(patience=5, verbose=1),
         ReduceLROnPlateau(factor=0.3, patience=2, min_lr=0.000001, verbose=1),
-        #ModelCheckpoint(modelFile, verbose=1, save_best_only=True, save_weights_only=True),
+        ModelCheckpoint(model_name+"_best.h5", verbose=1, save_best_only=True, save_weights_only=False),
         TensorBoard(log_dir='logs/{}'.format(model_name),profile_batch=0,update_freq='batch',write_graph=False)
     ]
 
-model.fit_generator(generator=tor,validation_data=vor,epochs = 20,steps_per_epoch=train_batches,validation_steps=validate_batches,use_multiprocessing=True,workers=15,callbacks=callbacks)
+model.fit_generator(generator=tor,validation_data=vor,epochs = 20,class_weight = class_counts_int_keys, steps_per_epoch=train_batches,validation_steps=validate_batches,use_multiprocessing=True,workers=15,callbacks=callbacks)
+
+results = per_class_f1(model,vor,validate_batches,LABEL_INTS) 
+
+# opt=tf.keras.optimizers.Adam(learning_rate=0.0005, beta_1=0.9, beta_2=0.999, amsgrad=False)
+
+# model.compile(optimizer=opt,loss=mga_get_weighted_loss(np.array([[1.,1.]])),metrics=[f1,precision,recall,'binary_accuracy'])
+
+# model_name = "All_3rdPhase{}".format(int(time.time()))
+# callbacks = [
+#         #EarlyStopping(patience=5, verbose=1),
+#         ReduceLROnPlateau(factor=0.3, patience=2, min_lr=0.000001, verbose=1),
+#         #ModelCheckpoint(modelFile, verbose=1, save_best_only=True, save_weights_only=True),
+#         TensorBoard(log_dir='logs/{}'.format(model_name),profile_batch=0,update_freq='batch',write_graph=False)
+#     ]
+
+# model.fit_generator(generator=tor,validation_data=vor,epochs = 5,steps_per_epoch=train_batches,validation_steps=validate_batches,use_multiprocessing=True,workers=15,callbacks=callbacks)

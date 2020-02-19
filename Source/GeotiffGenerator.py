@@ -42,7 +42,7 @@ class DataGenerator(tf.keras.preprocessing.image.Iterator):
         '''
 
         # Initialization
-        X = np.empty((self.batch_size, *self.dim, self.n_channels))
+        X = np.empty((self.batch_size, *self.dim, 4))
         y = np.empty((self.batch_size, len(self.label_keys)), dtype=int)
 
         # Generate data
@@ -58,6 +58,9 @@ class DataGenerator(tf.keras.preprocessing.image.Iterator):
             ds=gdal.Open(filename[2])
             arr=ds.ReadAsArray()
             X[i,:,:,2] = arr/arr.max()
+            ds=gdal.Open(filename[4])
+            arr=ds.ReadAsArray()
+            X[i,:,:,4] = arr/arr.max()
 
             X[i,] = cv2.resize(X[i,],self.dim,interpolation=cv2.INTER_CUBIC)
 
