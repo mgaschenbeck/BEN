@@ -1,7 +1,7 @@
 from GeotiffGeneratorAllBands import *
 from Metrics import *
 from Losses import *
-import Analysis
+from Analysis import *
 
 import numpy as np
 import os
@@ -16,13 +16,9 @@ from tensorflow.keras.applications import ResNet50,VGG16
 from tensorflow.keras.layers import Flatten, Dense, Dropout
 from tensorflow.keras.callbacks import EarlyStopping,ReduceLROnPlateau,ModelCheckpoint, TensorBoard
 
-
-
-
 import numpy as np
 import copy
 from sklearn.model_selection import train_test_split
-
 
 #PROJECT VARIABLES:
 DATA_DIR='/mnt/tier1/maschenb/BigEarthNet-v1.0'
@@ -31,7 +27,6 @@ DATA_DIR='/mnt/tier1/maschenb/BigEarthNet-v1.0'
 NUMBER_OF_CLASSES=43
 #LABEL_INTS={"no_ship":0,"cargo":1,"dredging":2,"fishing":3,"passenger":4,"pleasure_craft":5,"sailing":6,"tanker":7,"tug":8}
 LABEL_INTS={}
-
 
 def fileList(source):
     matches = []
@@ -46,8 +41,6 @@ def fileList(source):
                 labels.append(os.path.join(root,os.path.basename(root)+'_labels_metadata.json'))
 
     return matches,labels
-
-
 
 #File and label info:
 train_ratio=.7
@@ -97,8 +90,8 @@ flow_params = { 'dim': (120,120),
                 'batch_size': 64,
                 'n_classes': NUMBER_OF_CLASSES,
                 'shuffle': True}
-train_batches=len(filenames_train)/flow_params['batch_size']/3
-validate_batches=len(filenames_validate)/flow_params['batch_size']/3
+train_batches=len(filenames_train)/flow_params['batch_size']/10
+validate_batches=len(filenames_validate)/flow_params['batch_size']/10
 
 augmentation_params={'horizontal_flip':True,'vertical_flip':True}#'rotation_range':90,'zoom_range':.2,"channel_shift_range":.1,'horizontal_flip':True,'vertical_flip':True}
 
@@ -247,18 +240,20 @@ callbacks = [
 
 model.fit_generator(generator=tor,validation_data=vor,epochs = 20,class_weight = class_counts_int_keys, steps_per_epoch=train_batches,validation_steps=validate_batches,use_multiprocessing=True,workers=15,callbacks=callbacks)
 
+
+
+opt=tf.keras.optimizers.Adam(learning_rate=0.0005, beta_1=0.9, beta_2=0.999, amsgrad=False)
+
+#model.compile(optimizer=opt,loss=mga_get_weighted_loss(np.array([[1.,1.]])),metrics=[f1,precision,recall,'binary_accuracy'])
+model.compile(optimizer=opt,loss=mga_get_focal_loss(weights=np.array([[1.,5.]])),metrics=[f1,precision,recall,'binary_accuracy'])
+
+model_name = "2ndPhaseWeights_withfocal{}".format(int(time.time()))
+callbacks = [
+        #EarlyStopping(patience=5, verbose=1),
+        ReduceLROnPlateau(factor=0.3, patience=2, min_lr=0.000001, verbose=1),
+        #ModelCheckpoint(modelFile, verbose=1, save_best_only=True, save_weights_only=True),
+        TensorBoard(log_dir='logs/{}'.format(model_name),profile_batch=0,update_freq='batch',write_graph=False)
+    ]
+
+model.fit_generator(generator=tor,validation_data=vor,epochs = 5,steps_per_epoch=train_batches,validation_steps=validate_batches,use_multiprocessing=True,workers=15,callbacks=callbacks)
 results = per_class_f1(model,vor,validate_batches,LABEL_INTS) 
-
-# opt=tf.keras.optimizers.Adam(learning_rate=0.0005, beta_1=0.9, beta_2=0.999, amsgrad=False)
-
-# model.compile(optimizer=opt,loss=mga_get_weighted_loss(np.array([[1.,1.]])),metrics=[f1,precision,recall,'binary_accuracy'])
-
-# model_name = "All_3rdPhase{}".format(int(time.time()))
-# callbacks = [
-#         #EarlyStopping(patience=5, verbose=1),
-#         ReduceLROnPlateau(factor=0.3, patience=2, min_lr=0.000001, verbose=1),
-#         #ModelCheckpoint(modelFile, verbose=1, save_best_only=True, save_weights_only=True),
-#         TensorBoard(log_dir='logs/{}'.format(model_name),profile_batch=0,update_freq='batch',write_graph=False)
-#     ]
-
-# model.fit_generator(generator=tor,validation_data=vor,epochs = 5,steps_per_epoch=train_batches,validation_steps=validate_batches,use_multiprocessing=True,workers=15,callbacks=callbacks)

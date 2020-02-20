@@ -34,7 +34,3 @@ def per_class_f1(model,vor,validate_batches,classLabels):
     return results
 
 
-precision = TP/(TP+FP)
-recall = TP/(TP+FN)
-f1 = recall*precision/(recall+precision)
-

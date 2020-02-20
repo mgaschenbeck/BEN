@@ -1,4 +1,4 @@
-from GeotiffGenerator import *
+from GeotiffGeneratorAllBands import *
 from Metrics import *
 from Losses import *
 
@@ -113,7 +113,7 @@ opt=tf.keras.optimizers.Adam(learning_rate=0.0005, beta_1=0.9, beta_2=0.999, ams
 model.compile(optimizer=opt,loss=mga_get_weighted_loss(np.array([[1.,5.]])),metrics=[f1,precision,recall,'binary_accuracy'])
 
 
-model_name = "VGG16_Adam.0005_batchesdividedby3_{}".format(int(time.time()))
+model_name = "HR_FP5_{}".format(int(time.time()))
 callbacks = [
         #EarlyStopping(patience=5, verbose=1),
         ReduceLROnPlateau(factor=0.3, patience=2, min_lr=0.000001, verbose=1),
@@ -122,4 +122,5 @@ callbacks = [
     ]
 
 model.fit_generator(generator=tor,validation_data=vor,epochs = 20,steps_per_epoch=train_batches,validation_steps=validate_batches,use_multiprocessing=True,workers=15,callbacks=callbacks)
+
 
